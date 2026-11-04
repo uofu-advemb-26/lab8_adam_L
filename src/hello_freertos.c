@@ -1,3 +1,5 @@
+#include "portmacro.h"
+#include "projdefs.h"
 #include <can2040.h>
 #include <hardware/regs/intctrl.h>
 #include <stdio.h>
@@ -7,10 +9,14 @@
 #include <queue.h>
 
 static struct can2040 cbus;
+QueueHandle_t queue;
+SemaphoreHandle_t semaphore;
 
 static void can2040_cb(struct can2040 *cd, uint32_t notify, struct can2040_msg *msg)
 {
-    // Put your code here....
+    xSemaphoreTake(semaphore,portMAX_DELAY);
+    xQueueSendToBackFromISR(queue, msg, portMAX_DELAY);
+    xSemaphoreGive(semaphore);
 }
 
 static void PIOx_IRQHandler(void)
@@ -40,17 +46,18 @@ void canbus_setup(void)
 void main_task(__unused void *params) 
 {
 
-    struct can2040_msg msg =
-    {
-        .id = 0x123,
-        .dlc = 7,
-        .data = {'M', 'e','s','s','a','g','e'}
-    };
+    static char buffer[100];
 
     while(1)
     {
-        can2040_transmit(&cbus, &msg);
-        vTaskDelay(1000);
+        if(xQueueIsQueueEmpty(queue) == pdFALSE)
+        {
+            memset(buffer,0,100);
+            xSemaphoreTake(semaphore,portMAX_DELAY);
+            memcpy(buffer, xQueueReceive(queue), length);
+            xSemaphoreGive(semaphore);
+            printf(buffer);
+        }
     }
 }
 
@@ -58,6 +65,9 @@ int main( void )
 {
     stdio_init_all();
     canbus_setup();
+    queue = xQueueCreate(100, sizeof(struct can2040_msg));
+    semaphore = xSemaphoreCreateBinary();
+    xSemaphoreGive(semaphore);
     TaskHandle_t task;
     xTaskCreate(main_task, "MainThread",
                 configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY, &task);
