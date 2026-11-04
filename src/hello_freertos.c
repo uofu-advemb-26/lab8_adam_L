@@ -37,8 +37,21 @@ void canbus_setup(void)
     can2040_start(&cbus, sys_clock, bitrate, gpio_rx, gpio_tx);
 }
 
-void main_task(__unused void *params) {
-    
+void main_task(__unused void *params) 
+{
+
+    struct can2040_msg msg =
+    {
+        .id = 0x123,
+        .dlc = 7,
+        .data = {'M', 'e','s','s','a','g','e'}
+    };
+
+    while(1)
+    {
+        can2040_transmit(&cbus, &msg);
+        vTaskDelay(1000);
+    }
 }
 
 int main( void )
