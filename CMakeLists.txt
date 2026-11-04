@@ -40,7 +40,7 @@ elseif (DEFINED ENV{CAN_PATH})
     set(CAN_PATH $ENV{CAN_PATH})
 else()
 # Use the submodule
-    set(CAN_PATH can2040)
+    set(CAN_PATH "${CMAKE_CURRENT_LIST_DIR}/can2040")
 endif()
 
 if(DEFINED ENV{OPENOCD_PATH})
